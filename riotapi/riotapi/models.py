@@ -25,6 +25,7 @@ class Match(models.Model):
 
 
 class MatchHistory(models.Model):
+    id = models.IntegerField(primary_key=True)
     match_idx = models.IntegerField(null=False)
     user = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="match_history", null=False
@@ -34,4 +35,4 @@ class MatchHistory(models.Model):
     )
 
     def __str__(self) -> str:
-        return f"{self.match_idx}"
+        return f"[{self.id}] {self.user} - {self.match_idx}"

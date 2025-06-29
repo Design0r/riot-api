@@ -1,5 +1,7 @@
 from typing import Optional
 
+from django.db import transaction
+
 from riotapi.api import RiotApi
 
 from .models import Account, Match, MatchHistory
@@ -56,7 +58,9 @@ class MatchSvc:
 
         missing = [i for i in range(start_idx, end_idx) if i not in existing]
         if not missing:
-            print("match history already synced")
+            print(
+                f"match history already synced for user {user}, in range {start_idx}-{start_idx + count}"
+            )
             return
 
         print(f"found missing match history data for {user}: {missing}")
@@ -87,8 +91,11 @@ class MatchSvc:
                     continue
 
                 # Ensure Match exists
-                match = self.get_by_id(m_id)
-                mh = MatchHistory.objects.create(match_idx=idx, user=user, match=match)
-                print(
-                    f"creating match history: {mh} for user: {user} and match: {match}"
-                )
+                with transaction.atomic():
+                    match = self.get_by_id(m_id)
+                    mh = MatchHistory.objects.create(
+                        match_idx=idx, user=user, match=match
+                    )
+                    print(
+                        f"created match history: {mh} for user: {user} and match: {match}"
+                    )
