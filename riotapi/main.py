@@ -18,7 +18,9 @@ def main():
     acc = acc_svc.get_by_riot_id("souL", "ULU")
     if not acc:
         return
-    match_svc.get_match_history(acc, 5, 15)
+    data = match_svc.get_match_history(acc, 0, 15)
+    for d in data:
+        print(d, d.match, d.user)
 
 
 if __name__ == "__main__":
