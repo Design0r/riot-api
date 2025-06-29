@@ -15,12 +15,11 @@ def main():
     riot_api = RiotApi(client, timeout_secs=2)
     acc_svc = AccountSvc(riot_api)
     match_svc = MatchSvc(riot_api)
-    acc = acc_svc.get_by_riot_id("souL", "ULU")
+    acc = acc_svc.get_by_riot_id("Long Long Man", "CHI")
     if not acc:
         return
-    data = match_svc.get_match_history(acc, 0, 15)
-    for d in data:
-        print(d, d.match, d.user)
+    for i in range(10):
+        match_svc.get_match_history(acc, i * 100, 100)
 
 
 if __name__ == "__main__":

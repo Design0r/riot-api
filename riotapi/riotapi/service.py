@@ -1,4 +1,3 @@
-import time
 from typing import Optional
 
 from riotapi.api import RiotApi
@@ -75,8 +74,12 @@ class MatchSvc:
         # For each run, fetch match IDs and create histories
         for run_start, run_count in ranges:
             match_ids = self.riot.get_matches_by_puuid(user.puuid, run_start, run_count)
+            if not match_ids:
+                print(
+                    f"found no matches, skippking range, start: {run_start} count: {run_count}"
+                )
+                continue
 
-            to_create: list[MatchHistory] = []
             for offset, m_id in enumerate(match_ids):
                 idx = run_start + offset
                 # Skip if somehow already created in the meantime
@@ -85,13 +88,7 @@ class MatchSvc:
 
                 # Ensure Match exists
                 match = self.get_by_id(m_id)
-                mh = MatchHistory(match_idx=idx, user=user, match=match)
+                mh = MatchHistory.objects.create(match_idx=idx, user=user, match=match)
                 print(
                     f"creating match history: {mh} for user: {user} and match: {match}"
                 )
-                to_create.append(mh)
-
-            # Bulk-create all new histories for this run
-            MatchHistory.objects.bulk_create(to_create, ignore_conflicts=True)
-
-            time.sleep(2)

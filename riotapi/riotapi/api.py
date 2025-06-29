@@ -1,4 +1,8 @@
-from typing import Any
+from __future__ import annotations
+
+import functools
+import time
+from typing import Any, Callable
 
 import httpx
 
@@ -10,7 +14,58 @@ MATCHES_BY_PUUID = f"{ROOT_URL}/lol/match/v5/matches/by-puuid/{{puuid}}/ids?star
 MATCH_BY_MATCHID = f"{ROOT_URL}/lol/match/v5/matches/{{matchId}}"
 
 
-class RiotApi:
+def create_rate_limiter(timeout_secs: float, verbose: bool = True):
+    class RateLimiter(type):
+        def __new__(
+            mcs: type["RateLimiter"],
+            name: str,
+            bases: tuple[type, ...],
+            namespace: dict[str, Any],
+        ) -> RateLimiter:
+            timestamp: float = time.time()
+
+            def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
+                @functools.wraps(func)
+                def wrapped(*args: Any, **kwargs: Any) -> Any:
+                    nonlocal timestamp
+                    nonlocal timeout_secs
+
+                    now: float = time.time()
+                    delta: float = now - timestamp
+                    if delta <= timeout_secs:
+                        if verbose:
+                            print(
+                                f"pausing {func.__name__}, "
+                                f"sleeping for {timeout_secs - delta:.3f}s"
+                            )
+                        time.sleep(timeout_secs - delta)
+
+                    timestamp = time.time()
+                    return func(*args, **kwargs)
+
+                return wrapped
+
+            new_ns: dict[str, Any] = {}
+            for attr, value in namespace.items():
+                if isinstance(value, classmethod):
+                    new_ns[attr] = classmethod(wrap(value.__func__))  # type: ignore
+                elif isinstance(value, staticmethod):
+                    new_ns[attr] = staticmethod(wrap(value.__func__))
+                elif callable(value):
+                    if value.__name__ == "__init__":
+                        new_ns[attr] = value
+                        continue
+
+                    new_ns[attr] = wrap(value)
+                else:
+                    new_ns[attr] = value
+
+            return super().__new__(mcs, name, bases, new_ns)
+
+    return RateLimiter
+
+
+class RiotApi(metaclass=create_rate_limiter(1.4, verbose=False)):
     def __init__(self, client: httpx.Client, timeout_secs: int = 2) -> None:
         self.client = client
         self.timeout_secs = timeout_secs
