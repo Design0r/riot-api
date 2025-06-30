@@ -11,18 +11,30 @@ class AccountSvc:
     def __init__(self, riot_api: RiotApi):
         self.riot = riot_api
 
-    def get_by_riot_id(self, game_name: str, tag_line: str) -> Optional[Account]:
+    def _create_account(self, data: dict[str, str]) -> Account:
+        acc = Account.objects.create(
+            puuid=data["puuid"], game_name=data["gameName"], tag_line=data["tagLine"]
+        )
+        print(f"created account {acc}")
+        return acc
+
+    def get_by_riot_id(self, game_name: str, tag_line: str) -> Account:
         acc = Account.objects.filter(game_name=game_name, tag_line=tag_line).first()
         if acc:
             print(f"found cached account: {acc}")
             return acc
 
         data = self.riot.get_account_by_riot_id(game_name, tag_line)
+        return self._create_account(data)
 
-        acc = Account.objects.create(
-            puuid=data["puuid"], game_name=data["gameName"], tag_line=data["tagLine"]
-        )
-        print(f"created account {acc}")
+    def get_by_puuid(self, puuid: str) -> Account:
+        try:
+            acc = Account.objects.get(puuid=puuid)
+        except Account.DoesNotExist:
+            data = self.riot.get_account_by_puuid(puuid)
+            return self._create_account(data)
+
+        print(f"found cached account: {acc}")
         return acc
 
 
@@ -96,6 +108,29 @@ class MatchSvc:
                     mh = MatchHistory.objects.create(
                         match_idx=idx, user=user, match=match
                     )
-                    print(
-                        f"created match history: {mh} for user: {user} and match: {match}"
-                    )
+                    print(f"created match history: {mh} for match: {match}")
+
+
+class MatchCrawler:
+    def __init__(self, acc: AccountSvc, match: MatchSvc):
+        self.acc = acc
+        self.match = match
+
+    def crawl(self):
+        all_matches = Match.objects.all()
+
+        for match in all_matches:
+            players = match.data["metadata"]["participants"]
+            for puuid in players:
+                user = self.acc.get_by_puuid(puuid)
+
+                start = 0
+                count = 100
+                while True:
+                    res = self.match.get_match_history(user, start, count)
+                    if not res:
+                        break
+
+                    start += len(res)
+
+        self.crawl()

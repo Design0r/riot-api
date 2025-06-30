@@ -10,6 +10,8 @@ ROOT_URL = "https://europe.api.riotgames.com"
 ACCOUNT_BY_RIOT_ID = (
     f"{ROOT_URL}/riot/account/v1/accounts/by-riot-id/{{gameName}}/{{tagLine}}"
 )
+
+ACCOUNT_BY_PUUID = f"{ROOT_URL}/riot/account/v1/accounts/by-puuid/{{puuid}}"
 MATCHES_BY_PUUID = f"{ROOT_URL}/lol/match/v5/matches/by-puuid/{{puuid}}/ids?start={{start}}&count={{count}}"
 MATCH_BY_MATCHID = f"{ROOT_URL}/lol/match/v5/matches/{{matchId}}"
 
@@ -91,3 +93,10 @@ class RiotApi(metaclass=create_rate_limiter(1.4, verbose=False)):
         res.raise_for_status()
         print(f"fetched account for {game_name}#{tag_line}")
         return res.json()
+
+    def get_account_by_puuid(self, puuid: str) -> dict[str, Any]:
+        res = self.client.get(ACCOUNT_BY_PUUID.format(puuid=puuid))
+        res.raise_for_status()
+        data = res.json()
+        print(f"fetched account for {data['gameName']}#{data['tagLine']}")
+        return data
